@@ -98,11 +98,13 @@ public class ShareMenuReactView: NSObject {
         let myGroup = DispatchGroup()
 
         var urlProvider:NSItemProvider! = nil
-        var imageProvider:NSItemProvider! = nil
+//        var imageProvider:NSItemProvider! = nil
         var textProvider:NSItemProvider! = nil
         var dataProvider:NSItemProvider! = nil
+        var imageProviders:[NSItemProvider] = []
 
-        var allData: [String: String] = [:]
+
+        var allData: [String: Array<String>] = ["images": [], "urls": [], "text": [], "data": []]
 
         for provider in attachments {
             if provider.hasItemConformingToTypeIdentifier(kUTTypeURL as String) {
@@ -112,7 +114,8 @@ public class ShareMenuReactView: NSObject {
                 textProvider = provider as? NSItemProvider
 
             } else if provider.hasItemConformingToTypeIdentifier(kUTTypeImage as String) {
-                imageProvider = provider as? NSItemProvider
+                //imageProvider = provider as? NSItemProvider
+                imageProviders.append(provider as! NSItemProvider)
 
             } else if provider.hasItemConformingToTypeIdentifier(kUTTypeData as String) {
                 dataProvider = provider as? NSItemProvider
@@ -125,25 +128,29 @@ public class ShareMenuReactView: NSObject {
             urlProvider.loadItem(forTypeIdentifier: kUTTypeURL as String, options: nil) { (item, error) in
                 let url: URL! = item as? URL
 
-                allData["url"] = url.absoluteString;
+                allData["url"]!.append(url.absoluteString)
                 myGroup.leave()
             }
         }
-        if (imageProvider != nil) {
-            myGroup.enter()
-            imageProvider.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) { (item, error) in
-                let url: URL! = item as? URL
+        if (!imageProviders.isEmpty) {
+            for imgProvier in imageProviders {
+                myGroup.enter()
+                imgProvier.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) { (item, error) in
+                    let url: URL! = item as? URL
 
-                allData["image"] = url.absoluteString;
-                myGroup.leave()
+                    allData["images"]!.append(url.absoluteString)
+                    myGroup.leave()
+                }
             }
+
+
         }
         if (textProvider != nil) {
             myGroup.enter()
             textProvider.loadItem(forTypeIdentifier: kUTTypeText as String, options: nil) { (item, error) in
                 let text:String! = item as? String
 
-                allData["text"] = text;
+                allData["text"]!.append(text)
                 myGroup.leave()
             }
         }
@@ -152,7 +159,7 @@ public class ShareMenuReactView: NSObject {
             dataProvider.loadItem(forTypeIdentifier: kUTTypeData as String, options: nil) { (item, error) in
                 let url: URL! = item as? URL
 
-                allData["data"] = url.absoluteString;
+                allData["data"]!.append(url.absoluteString)
                 myGroup.leave()
             }
         }
