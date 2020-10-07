@@ -128,7 +128,7 @@ public class ShareMenuReactView: NSObject {
             urlProvider.loadItem(forTypeIdentifier: kUTTypeURL as String, options: nil) { (item, error) in
                 let url: URL! = item as? URL
 
-                allData["url"]!.append(url.absoluteString)
+                allData["urls"]!.append(url.absoluteString)
                 myGroup.leave()
             }
         }
