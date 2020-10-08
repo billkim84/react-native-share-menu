@@ -138,7 +138,10 @@ public class ShareMenuReactView: NSObject {
                 imgProvier.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) { (item, error) in
                     let url: URL! = item as? URL
 
-                    allData["images"]!.append(url.absoluteString)
+                    if url != nil {
+                        allData["images"]!.append(url.absoluteString)
+                    }
+
                     myGroup.leave()
                 }
             }
