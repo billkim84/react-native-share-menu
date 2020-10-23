@@ -95,54 +95,90 @@ public class ShareMenuReactView: NSObject {
     func extractDataFromContext(context: NSExtensionContext, withCallback callback: @escaping (String?, String?, NSException?) -> Void) {
         let item:NSExtensionItem! = context.inputItems.first as? NSExtensionItem
         let attachments:[AnyObject]! = item.attachments
+        let myGroup = DispatchGroup()
 
         var urlProvider:NSItemProvider! = nil
-        var imageProvider:NSItemProvider! = nil
+//        var imageProvider:NSItemProvider! = nil
         var textProvider:NSItemProvider! = nil
         var dataProvider:NSItemProvider! = nil
+        var imageProviders:[NSItemProvider] = []
+
+
+        var allData: [String: Array<String>] = ["images": [], "urls": [], "text": [], "data": []]
 
         for provider in attachments {
             if provider.hasItemConformingToTypeIdentifier(kUTTypeURL as String) {
                 urlProvider = provider as? NSItemProvider
-                break
+
             } else if provider.hasItemConformingToTypeIdentifier(kUTTypeText as String) {
                 textProvider = provider as? NSItemProvider
-                break
+
             } else if provider.hasItemConformingToTypeIdentifier(kUTTypeImage as String) {
-                imageProvider = provider as? NSItemProvider
-                break
+                //imageProvider = provider as? NSItemProvider
+                imageProviders.append(provider as! NSItemProvider)
+
             } else if provider.hasItemConformingToTypeIdentifier(kUTTypeData as String) {
                 dataProvider = provider as? NSItemProvider
-                break
+
             }
         }
 
         if (urlProvider != nil) {
+            myGroup.enter()
             urlProvider.loadItem(forTypeIdentifier: kUTTypeURL as String, options: nil) { (item, error) in
                 let url: URL! = item as? URL
 
-                callback(url.absoluteString, "text/plain", nil)
+                allData["urls"]!.append(url.absoluteString)
+                myGroup.leave()
             }
-        } else if (imageProvider != nil) {
-            imageProvider.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) { (item, error) in
-                let url: URL! = item as? URL
+        }
+        if (!imageProviders.isEmpty) {
+            for imgProvier in imageProviders {
+                myGroup.enter()
+                imgProvier.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) { (item, error) in
+                    let url: URL! = item as? URL
 
-                callback(url.absoluteString, self.extractMimeType(from: url), nil)
+                    if url != nil {
+                        allData["images"]!.append(url.absoluteString)
+                    }
+
+                    myGroup.leave()
+                }
             }
-        } else if (textProvider != nil) {
+
+
+        }
+        if (textProvider != nil) {
+            myGroup.enter()
             textProvider.loadItem(forTypeIdentifier: kUTTypeText as String, options: nil) { (item, error) in
                 let text:String! = item as? String
 
-                callback(text, "text/plain", nil)
+                allData["text"]!.append(text)
+                myGroup.leave()
             }
-        }  else if (dataProvider != nil) {
+        }
+        if (dataProvider != nil) {
+            myGroup.enter()
             dataProvider.loadItem(forTypeIdentifier: kUTTypeData as String, options: nil) { (item, error) in
                 let url: URL! = item as? URL
 
-                callback(url.absoluteString, self.extractMimeType(from: url), nil)
+                allData["data"]!.append(url.absoluteString)
+                myGroup.leave()
             }
-        } else {
-            callback(nil, nil, NSException(name: NSExceptionName(rawValue: "Error"), reason:"couldn't find provider", userInfo:nil))
+        }
+
+        myGroup.notify(queue: .main) {
+            print("Finished all requests.")
+
+            if let theJSONData = try?  JSONSerialization.data(
+              withJSONObject: allData,
+              options: .prettyPrinted
+              ),
+              let theJSONText = String(data: theJSONData,
+                                       encoding: String.Encoding.utf8) {
+                  print("JSON string = \n\(theJSONText)")
+                 callback(theJSONText, "text/plain", nil);
+            }
         }
     }
 
