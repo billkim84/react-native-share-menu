@@ -88,11 +88,16 @@ public class ShareMenuReactView: NSObject {
                 return
             }
 
+            let s = MemoryLayout.size(ofValue: data);
+
+            print("Data size s = \(s)")
             resolve([MIME_TYPE_KEY: mimeType, DATA_KEY: data])
         }
     }
 
     func extractDataFromContext(context: NSExtensionContext, withCallback callback: @escaping (String?, String?, NSException?) -> Void) {
+
+
         let item:NSExtensionItem! = context.inputItems.first as? NSExtensionItem
         let attachments:[AnyObject]! = item.attachments
         let myGroup = DispatchGroup()
@@ -137,9 +142,32 @@ public class ShareMenuReactView: NSObject {
                 myGroup.enter()
                 imgProvier.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) { (item, error) in
                     let url: URL! = item as? URL
+                    let image: UIImage! = item as? UIImage
 
+                    // item can be url or image data
                     if url != nil {
                         allData["images"]!.append(url.absoluteString)
+                    }
+
+                    // handle image data
+                    if image != nil {
+
+                        guard let groupFileManagerContainer = FileManager.default
+                                .containerURL(forSecurityApplicationGroupIdentifier: "group.io.dulyapp.duly")
+                        else {
+                            return
+                        }
+
+                        // sotre file temporary
+                        let fileName = UUID().uuidString
+                        let filePath = groupFileManagerContainer
+                          .appendingPathComponent("\(fileName).png")
+
+                        if let data = image.pngData() {
+                            try? data.write(to: filePath)
+                        }
+
+                        allData["images"]!.append(filePath.absoluteString)
                     }
 
                     myGroup.leave()
@@ -177,9 +205,26 @@ public class ShareMenuReactView: NSObject {
               let theJSONText = String(data: theJSONData,
                                        encoding: String.Encoding.utf8) {
                   print("JSON string = \n\(theJSONText)")
+                let s = MemoryLayout.size(ofValue: theJSONText);
+
+                print("theJSONText size = \(s)")
                  callback(theJSONText, "text/plain", nil);
             }
         }
+    }
+
+    func moveFileToDisk(from srcUrl: URL, to destUrl: URL) -> Bool {
+      do {
+        if FileManager.default.fileExists(atPath: destUrl.path) {
+          try FileManager.default.removeItem(at: destUrl)
+        }
+        try FileManager.default.copyItem(at: srcUrl, to: destUrl)
+      } catch (let error) {
+        print("Could not save file from \(srcUrl) to \(destUrl): \(error)")
+        return false
+      }
+
+      return true
     }
 
     func extractMimeType(from url: URL) -> String {
